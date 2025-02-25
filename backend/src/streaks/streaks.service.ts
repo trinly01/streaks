@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import fs from 'fs';
-import path from 'path';
 import dayjs from 'dayjs';
+import { data } from './streaks'
 
 export type Streak = {
   date: string;
@@ -10,11 +9,9 @@ export type Streak = {
 
 @Injectable()
 export class StreaksService {
-  private dataFile = path.join(__dirname, 'streaks.json');
 
   private readData(): Record<string, Streak[]> {
-    const rawData = fs.readFileSync(this.dataFile, 'utf-8');
-    return JSON.parse(rawData) as Record<string, Streak[]>;
+    return data;
   }
 
   private determineState(
