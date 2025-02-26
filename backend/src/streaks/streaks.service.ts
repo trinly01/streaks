@@ -1,56 +1,62 @@
 import { Injectable } from '@nestjs/common';
 import dayjs from 'dayjs';
-import { data } from './streaks'
+import { data } from './streaks';
 
 export type Streak = {
   date: string;
   activities: number;
 };
 
+enum StreakState {
+  COMPLETED = "COMPLETED",
+  SAVED = "SAVED",
+  AT_RISK = "AT_RISK",
+}
+
 @Injectable()
 export class StreaksService {
-
   private readData(): Record<string, Streak[]> {
     return data;
   }
 
   private determineState(
     activities: number,
-    prevDayActivities: number,
-    streakExists: boolean,
+    missedDays: number,
+    streakExists: boolean
   ): string {
-    if (activities > 0) return 'COMPLETED';
-    if (
-      streakExists &&
-      (prevDayActivities > 0 || prevDayActivities === undefined)
-    )
-      return 'AT_RISK';
+    if (activities > 0) return StreakState.COMPLETED;
+
+    if (streakExists) {
+      if (missedDays < 3) return StreakState.SAVED; // Within recovery window
+      if (missedDays === 3) return StreakState.AT_RISK; // Last chance to recover
+    }
+
     return 'INCOMPLETE';
   }
 
   getStreak(caseId: string) {
+    console.log('caseId', caseId)
     const data = this.readData()[caseId];
     if (!data) return { message: 'Case not found' };
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const today: string = dayjs().format('YYYY-MM-DD');
     let total = 0;
     let streakExists = false;
+    let missedDays = 0;
 
     // Determine state for each day
-    const days = data.map((day, index, arr) => {
+    const days = data.map((day) => {
       if (day.activities > 0) {
         total++;
         streakExists = true;
+        missedDays = 0; // Reset missed days on activity
+      } else {
+        missedDays++;
       }
-      const prevDayActivities = index > 0 ? arr[index - 1].activities : 0;
+
       return {
         ...day,
-        state: this.determineState(
-          day.activities,
-          prevDayActivities,
-          streakExists,
-        ),
+        state: this.determineState(day.activities, missedDays, streakExists),
       };
     });
 
